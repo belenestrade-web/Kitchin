@@ -116,6 +116,16 @@ type EditingState = {
   valor: string;
 } | null;
 
+interface MedidasCocina {
+  paredes: string[];
+  isla: boolean;
+  islaLongitud: string;
+  islaAncho: string;
+  altoTecho: string;
+  profundidad_bajos: string;
+  profundidad_altos: string;
+}
+
 export default function PresupuestoDetalle({
   presupuestoId,
   ivaPorcentaje,
@@ -146,7 +156,15 @@ export default function PresupuestoDetalle({
   const [formAddOpen, setFormAddOpen] = useState(false);
   const [modalReanalizar, setModalReanalizar] = useState(false);
 
-  const [medidas, setMedidas] = useState({ anchoTotal: '', altoTecho: '', profundidad_bajos: '', profundidad_altos: '' });
+  const [medidas, setMedidas] = useState<MedidasCocina>({
+    paredes: [''],
+    isla: false,
+    islaLongitud: '',
+    islaAncho: '',
+    altoTecho: '',
+    profundidad_bajos: '',
+    profundidad_altos: '',
+  });
   const [medidasConfirmadas, setMedidasConfirmadas] = useState(false);
   const [formMedidasOpen, setFormMedidasOpen] = useState(false);
 
@@ -1218,40 +1236,137 @@ function FormularioMedidas({
   onConfirmar,
   onCancelar,
 }: {
-  medidas: { anchoTotal: string; altoTecho: string; profundidad_bajos: string; profundidad_altos: string };
-  onChange: (m: { anchoTotal: string; altoTecho: string; profundidad_bajos: string; profundidad_altos: string }) => void;
+  medidas: MedidasCocina;
+  onChange: (m: MedidasCocina) => void;
   onConfirmar: () => void;
   onCancelar: () => void;
 }) {
+  const MAX_PAREDES = 6;
+  const inputClass =
+    'mt-1 block w-full rounded-card border border-text-muted/30 bg-card px-3 py-2 text-sm text-text-main focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary';
+
   const completo =
-    medidas.anchoTotal.trim() !== '' &&
+    medidas.paredes[0].trim() !== '' &&
     medidas.altoTecho.trim() !== '' &&
     medidas.profundidad_bajos.trim() !== '' &&
-    medidas.profundidad_altos.trim() !== '';
+    medidas.profundidad_altos.trim() !== '' &&
+    (!medidas.isla || (medidas.islaLongitud.trim() !== '' && medidas.islaAncho.trim() !== ''));
+
+  function setPared(idx: number, val: string) {
+    const paredes = [...medidas.paredes];
+    paredes[idx] = val;
+    onChange({ ...medidas, paredes });
+  }
+
+  function añadirPared() {
+    if (medidas.paredes.length >= MAX_PAREDES) return;
+    onChange({ ...medidas, paredes: [...medidas.paredes, ''] });
+  }
+
+  function eliminarPared(idx: number) {
+    onChange({ ...medidas, paredes: medidas.paredes.filter((_, i) => i !== idx) });
+  }
 
   return (
-    <Card className="space-y-4 border border-primary/30 bg-primary/5 p-6">
+    <Card className="space-y-5 border border-primary/30 bg-primary/5 p-6">
       <header>
         <h3 className="text-base font-semibold text-text-main">Medidas de la cocina</h3>
         <p className="mt-1 text-sm text-text-muted">
           Necesitamos estas medidas para calcular dimensiones reales antes de analizar el plano.
         </p>
       </header>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <div>
-          <label htmlFor="medida-ancho" className="block text-xs font-medium text-text-muted">
-            Ancho total de la cocina (cm)
-          </label>
+
+      {/* Paredes */}
+      <div className="space-y-3">
+        <p className="text-xs font-medium text-text-muted">Paredes (longitud en cm)</p>
+        {medidas.paredes.map((val, idx) => (
+          <div key={idx} className="flex items-end gap-2">
+            <div className="flex-1">
+              <label htmlFor={`pared-${idx}`} className="block text-xs text-text-muted">
+                {idx === 0 ? 'Pared 1 (obligatoria)' : `Pared ${idx + 1}`}
+              </label>
+              <input
+                id={`pared-${idx}`}
+                type="number"
+                min={1}
+                value={val}
+                onChange={(e) => setPared(idx, e.target.value)}
+                placeholder="ej: 360"
+                className={inputClass}
+              />
+            </div>
+            {idx > 0 && (
+              <button
+                type="button"
+                onClick={() => eliminarPared(idx)}
+                className="mb-0.5 rounded p-1.5 text-text-muted hover:bg-danger/10 hover:text-danger"
+                aria-label={`Eliminar pared ${idx + 1}`}
+              >
+                🗑
+              </button>
+            )}
+          </div>
+        ))}
+        {medidas.paredes.length < MAX_PAREDES && (
+          <button
+            type="button"
+            onClick={añadirPared}
+            className="text-xs text-primary hover:underline"
+          >
+            + Añadir pared
+          </button>
+        )}
+      </div>
+
+      {/* Isla */}
+      <div className="space-y-3">
+        <label className="flex items-center gap-2 text-sm text-text-main">
           <input
-            id="medida-ancho"
-            type="number"
-            min={1}
-            value={medidas.anchoTotal}
-            onChange={(e) => onChange({ ...medidas, anchoTotal: e.target.value })}
-            placeholder="ej: 360"
-            className="mt-1 block w-full rounded-card border border-text-muted/30 bg-card px-3 py-2 text-sm text-text-main focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+            type="checkbox"
+            checked={medidas.isla}
+            onChange={(e) =>
+              onChange({ ...medidas, isla: e.target.checked, islaLongitud: '', islaAncho: '' })
+            }
+            className="rounded border-text-muted/30"
           />
-        </div>
+          La cocina tiene isla
+        </label>
+        {medidas.isla && (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+              <label htmlFor="isla-longitud" className="block text-xs font-medium text-text-muted">
+                Longitud de la isla (cm)
+              </label>
+              <input
+                id="isla-longitud"
+                type="number"
+                min={1}
+                value={medidas.islaLongitud}
+                onChange={(e) => onChange({ ...medidas, islaLongitud: e.target.value })}
+                placeholder="ej: 180"
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label htmlFor="isla-ancho" className="block text-xs font-medium text-text-muted">
+                Ancho de la isla (cm)
+              </label>
+              <input
+                id="isla-ancho"
+                type="number"
+                min={1}
+                value={medidas.islaAncho}
+                onChange={(e) => onChange({ ...medidas, islaAncho: e.target.value })}
+                placeholder="ej: 100"
+                className={inputClass}
+              />
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Altura y profundidades */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <div>
           <label htmlFor="medida-alto" className="block text-xs font-medium text-text-muted">
             Altura del techo (cm)
@@ -1263,7 +1378,7 @@ function FormularioMedidas({
             value={medidas.altoTecho}
             onChange={(e) => onChange({ ...medidas, altoTecho: e.target.value })}
             placeholder="ej: 250"
-            className="mt-1 block w-full rounded-card border border-text-muted/30 bg-card px-3 py-2 text-sm text-text-main focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+            className={inputClass}
           />
         </div>
         <div>
@@ -1277,7 +1392,7 @@ function FormularioMedidas({
             value={medidas.profundidad_bajos}
             onChange={(e) => onChange({ ...medidas, profundidad_bajos: e.target.value })}
             placeholder="ej: 60"
-            className="mt-1 block w-full rounded-card border border-text-muted/30 bg-card px-3 py-2 text-sm text-text-main focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+            className={inputClass}
           />
         </div>
         <div>
@@ -1291,10 +1406,11 @@ function FormularioMedidas({
             value={medidas.profundidad_altos}
             onChange={(e) => onChange({ ...medidas, profundidad_altos: e.target.value })}
             placeholder="ej: 35"
-            className="mt-1 block w-full rounded-card border border-text-muted/30 bg-card px-3 py-2 text-sm text-text-main focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+            className={inputClass}
           />
         </div>
       </div>
+
       <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
         <Button type="button" variant="ghost" onClick={onCancelar} className="w-full sm:w-auto">
           Cancelar

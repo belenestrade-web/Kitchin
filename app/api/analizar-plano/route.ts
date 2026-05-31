@@ -135,7 +135,12 @@ export async function POST(req: NextRequest) {
     : null;
   const medidas = medidasRaw
     ? {
-        anchoTotal:        String(medidasRaw.anchoTotal        ?? '').trim(),
+        paredes: Array.isArray(medidasRaw.paredes)
+          ? (medidasRaw.paredes as unknown[]).map((p) => String(p ?? '').trim()).filter(Boolean)
+          : [],
+        isla:              medidasRaw.isla === true,
+        islaLongitud:      String(medidasRaw.islaLongitud      ?? '').trim(),
+        islaAncho:         String(medidasRaw.islaAncho         ?? '').trim(),
         altoTecho:         String(medidasRaw.altoTecho         ?? '').trim(),
         profundidad_bajos: String(medidasRaw.profundidad_bajos ?? '').trim(),
         profundidad_altos: String(medidasRaw.profundidad_altos ?? '').trim(),
@@ -251,10 +256,11 @@ Incorpora esa respuesta al análisis y devuelve el JSON completo con TODOS los m
       ? `Analiza este plano y devuelve los módulos en JSON.
 
 MEDIDAS DE LA COCINA (proporcionadas por el vendedor):
-- Ancho total: ${medidas.anchoTotal} cm
+${medidas.paredes.map((l, i) => `- Pared ${i + 1}: ${l} cm`).join('\n')}
 - Altura del techo: ${medidas.altoTecho} cm
 - Profundidad módulos bajos: ${medidas.profundidad_bajos} cm
 - Profundidad módulos altos: ${medidas.profundidad_altos} cm
+${medidas.isla ? `- Isla: sí — longitud ${medidas.islaLongitud} cm, ancho ${medidas.islaAncho} cm` : '- Isla: no'}
 
 Usa estas medidas para calcular dimensiones reales de los módulos.`
       : 'Analiza este plano y devuelve los módulos en JSON.';
