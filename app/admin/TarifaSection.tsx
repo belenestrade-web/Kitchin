@@ -29,6 +29,8 @@ const tipoLabel: Record<TipoModulo, string> = {
   electrodomestico: 'Electrodom.',
   encimera: 'Encimera',
   accesorio: 'Accesorio',
+  panel: 'Panel',
+  zocalo: 'Zócalo',
 };
 
 function tipoOrden(t: TipoModulo): number {
