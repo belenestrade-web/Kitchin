@@ -1,0 +1,460 @@
+﻿ESPECIFICACIONES TÉCNICAS
+App SaaS de Presupuestos de Cocinas con Inteligencia Artificial
+Documento para desarrollo con Claude Code  ·  v1.0  ·  Mayo 2026
+
+0. Instrucciones para Claude Code
+Este documento describe completamente la aplicación que debes construir. Léelo entero antes de escribir una sola línea de código. Sigue este orden de trabajo:
+
+Lee la sección 1 (Visión general) y la sección 2 (Stack tecnológico) antes de empezar.
+Construye la aplicación pantalla a pantalla en el orden indicado en la sección 4.
+Cada pantalla debe funcionar antes de pasar a la siguiente.
+Usa los nombres de variables, rutas y componentes exactamente como se indican en este documento para mantener consistencia.
+Cuando tengas dudas sobre un comportamiento, aplica el principio de mínima fricción para el vendedor: la acción más probable debe ser siempre la más fácil de ejecutar.
+El idioma de toda la interfaz es español de España.
+
+Comando de inicio sugerido para Claude Code:
+  "Construye la aplicación descrita en este documento de especificaciones. Empieza por el setup del proyecto (sección 2) y luego implementa la Pantalla 1 (Login). Cuando la tengas funcional, dime y pasamos a la siguiente."  
+
+1. Visión General del Producto
+1.1 Qué es esta aplicación
+Una aplicación web SaaS que permite a los vendedores de tiendas de cocinas generar presupuestos automáticos a partir de un plano o imagen del diseño de la cocina, usando inteligencia artificial. El proceso completo dura entre 2 y 5 minutos.
+
+1.2 Flujo principal (happy path)
+El vendedor inicia sesión en la aplicación con su cuenta.
+Sube una imagen, PDF o captura de pantalla con el diseño de la cocina del cliente.
+La IA analiza el plano e identifica todos los módulos (altos, bajos, columnas, electrodomésticos, encimeras) con sus medidas.
+Si la IA tiene dudas, muestra una pregunta al vendedor antes de generar el presupuesto.
+El vendedor responde la duda y la IA genera el presupuesto desglosado por módulo.
+El sistema calcula los precios consultando la tarifa de precios de la tienda.
+El vendedor revisa el presupuesto, puede editar cantidades o precios manualmente.
+El vendedor genera el PDF y lo envía al cliente por email o WhatsApp.
+
+1.3 Modelo de negocio
+Tipo de producto
+SaaS B2B con personalización por cliente (tienda)
+Usuarios
+Vendedores de tiendas de cocinas (1 cuenta por tienda, usuarios ilimitados)
+Personalización
+Logo, colores, tarifa de precios y condiciones comerciales por tienda
+Precio
+Setup 499€ + 149€/mes por tienda
+Multi-tienda
+Una instancia por tienda; panel de administración independiente por tienda
+
+2. Stack Tecnológico
+Usa exactamente este stack. No sustituyas ninguna herramienta sin consultarlo.
+
+Frontend
+Next.js 14 con App Router + TypeScript + Tailwind CSS
+Backend / API
+Next.js API Routes (misma aplicación, sin backend separado)
+Base de datos
+Supabase (PostgreSQL) — gratuito para empezar
+Autenticación
+Supabase Auth (email + contraseña)
+Almacenamiento archivos
+Supabase Storage (imágenes y PDFs)
+IA — análisis de planos
+Anthropic API — modelo claude-sonnet-4-20250514 con visión
+Generación de PDF
+react-pdf o pdf-lib
+Hosting
+Vercel (despliegue automático desde GitHub)
+Control de versiones
+GitHub
+Variables de entorno
+.env.local para claves API (nunca en el código)
+
+2.1 Variables de entorno necesarias
+  ANTHROPIC_API_KEY=sk-ant-...  
+  NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co  
+  NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...  
+  SUPABASE_SERVICE_ROLE_KEY=eyJ...  
+
+2.2 Estructura de carpetas del proyecto
+  /app                  → páginas Next.js (App Router)  
+  /app/login            → pantalla de login  
+  /app/dashboard        → pantalla principal del vendedor  
+  /app/nuevo-presupuesto → flujo de creación  
+  /app/presupuestos     → historial  
+  /app/admin            → configuración de la tienda  
+  /components           → componentes reutilizables  
+  /lib                  → utilidades (supabase client, anthropic client)  
+  /types                → tipos TypeScript  
+
+3. Estructura de Base de Datos (Supabase)
+Crea estas tablas en Supabase exactamente con estos campos. Usa las políticas RLS de Supabase para que cada tienda solo vea sus propios datos.
+
+Tabla: tiendas
+id
+uuid, primary key, generado automáticamente
+nombre
+text — nombre comercial de la tienda
+logo_url
+text — URL del logo en Supabase Storage
+color_primario
+text — hex del color principal (#1E5FA8)
+condiciones_comerciales
+text — texto libre con condiciones del presupuesto
+iva_porcentaje
+integer — por defecto 21
+email_contacto
+text
+telefono
+text
+direccion
+text
+created_at
+timestamp with timezone
+
+Tabla: usuarios
+id
+uuid, foreign key → auth.users
+tienda_id
+uuid, foreign key → tiendas
+nombre
+text
+email
+text
+rol
+text — 'admin' o 'vendedor'
+created_at
+timestamp with timezone
+
+Tabla: tarifas
+id
+uuid, primary key
+tienda_id
+uuid, foreign key → tiendas
+nombre_modulo
+text — nombre del módulo tal como aparece en la tarifa
+tipo
+text — 'bajo', 'alto', 'columna', 'electrodomestico', 'encimera', 'accesorio'
+medida
+text — ej: '60x72x60'
+precio
+decimal(10,2)
+activo
+boolean — por defecto true
+
+Tabla: presupuestos
+id
+uuid, primary key
+tienda_id
+uuid, foreign key → tiendas
+usuario_id
+uuid, foreign key → usuarios
+cliente_nombre
+text
+cliente_email
+text
+cliente_telefono
+text
+imagen_url
+text — URL de la imagen del plano en Storage
+estado
+text — 'borrador', 'revisado', 'enviado'
+notas_ia
+text — dudas o notas del análisis de la IA
+total_neto
+decimal(10,2)
+total_iva
+decimal(10,2)
+total_bruto
+decimal(10,2)
+pdf_url
+text — URL del PDF generado
+created_at
+timestamp with timezone
+updated_at
+timestamp with timezone
+
+Tabla: lineas_presupuesto
+id
+uuid, primary key
+presupuesto_id
+uuid, foreign key → presupuestos
+nombre_modulo
+text
+tipo
+text
+medida
+text
+descripcion
+text
+unidades
+integer
+precio_unitario
+decimal(10,2)
+subtotal
+decimal(10,2) — calculado: unidades × precio_unitario
+editado_manualmente
+boolean — true si el vendedor modificó el precio
+orden
+integer — para mantener el orden de la lista
+
+4. Pantallas de la Aplicación
+Implementa las pantallas en este orden. Cada una debe estar completamente funcional antes de pasar a la siguiente.
+
+Pantalla 1 — Login
+Pantalla de acceso a la aplicación. Minimalista, con el logo de la tienda si ya está configurado. Es la primera pantalla que ve el vendedor.
+
+Elementos de la pantalla
+Logo de la tienda centrado en la parte superior (o logo genérico si no está configurado)
+Título: 'Accede a tu cuenta'
+Campo email con label 'Email'
+Campo contraseña con label 'Contraseña' y botón para mostrar/ocultar
+Botón principal 'Entrar' (color primario de la tienda)
+Enlace '¿Olvidaste tu contraseña?' — dispara flujo de reset de Supabase Auth
+Mensaje de error si las credenciales son incorrectas
+
+Lógica y comportamiento
+Al hacer clic en Entrar, valida con Supabase Auth
+Si el login es correcto, redirige al Dashboard (Pantalla 2)
+Si el login falla, muestra mensaje de error debajo del formulario
+Si el usuario ya tiene sesión activa, redirige directamente al Dashboard
+No hay registro público — las cuentas las crea el administrador de la tienda desde el panel de admin
+
+Pantalla 2 — Dashboard (pantalla principal del vendedor)
+Pantalla de inicio tras el login. El vendedor ve aquí el estado general y puede iniciar un nuevo presupuesto.
+
+Elementos de la pantalla
+Cabecera con logo de la tienda (izquierda) y nombre del vendedor + botón cerrar sesión (derecha)
+Botón grande y destacado: 'Nuevo presupuesto' (centro-superior de la pantalla)
+Contador de resumen: Presupuestos este mes / Enviados / Pendientes de revisar
+Lista de los últimos 10 presupuestos con: nombre del cliente, fecha, estado (badge de color), total y botón Ver
+Barra de búsqueda para filtrar presupuestos por nombre de cliente
+Enlace al panel de administración (solo visible para usuarios con rol 'admin')
+
+Lógica y comportamiento
+Al hacer clic en Nuevo presupuesto, navega a Pantalla 3
+Al hacer clic en Ver en un presupuesto existente, navega a Pantalla 5 (detalle del presupuesto)
+Los presupuestos se cargan desde Supabase filtrando por tienda_id del usuario logueado
+Los contadores se calculan en tiempo real desde la base de datos
+Estado del presupuesto: 'borrador' (gris), 'revisado' (amarillo), 'enviado' (verde)
+
+Pantalla 3 — Nuevo presupuesto: datos del cliente y subida del plano
+Primera pantalla del flujo de creación de presupuesto. El vendedor introduce los datos del cliente y sube el plano.
+
+Elementos de la pantalla
+Título: 'Nuevo presupuesto'
+Sección 'Datos del cliente': campos Nombre, Email y Teléfono (todos opcionales para no ralentizar el proceso)
+Sección 'Plano de la cocina': zona de drag & drop para subir archivo
+La zona de subida acepta: JPG, PNG, PDF, WEBP. Tamaño máximo: 20MB
+Vista previa de la imagen una vez subida
+Botón 'Analizar con IA' — grande, color primario
+Indicador de progreso durante el análisis ('Analizando el plano...')
+
+Lógica y comportamiento
+Al soltar o seleccionar un archivo, se muestra la vista previa
+Al hacer clic en Analizar con IA, el archivo se sube a Supabase Storage
+Luego se llama a la API Route /api/analizar-plano pasando la URL del archivo
+La API Route llama a la API de Anthropic con la imagen y el prompt de análisis
+Si la IA devuelve dudas (campo 'pregunta' no nulo), muestra Pantalla 4a (pregunta)
+Si no hay dudas, navega directamente a Pantalla 4b (presupuesto generado)
+Si hay error, muestra mensaje de error con opción de reintentar
+
+Pantalla 4a — Pregunta de la IA al vendedor
+Pantalla intermedia que aparece cuando la IA detecta ambigüedad en el plano y necesita información del vendedor antes de generar el presupuesto.
+
+Elementos de la pantalla
+Icono de pregunta o bombilla para indicar que la IA necesita aclaraciones
+Título: 'La IA necesita un dato antes de continuar'
+La pregunta de la IA mostrada en texto claro y visible
+Vista miniatura de la imagen del plano subido
+Campo de texto libre para que el vendedor escriba la respuesta
+Botón 'Continuar con el análisis'
+
+Lógica y comportamiento
+Al hacer clic en Continuar, se llama de nuevo a la API de Anthropic incluyendo la pregunta y la respuesta del vendedor
+La respuesta del vendedor se añade al contexto del prompt para que la IA complete el análisis
+Si la IA tiene más dudas, se puede mostrar otra pregunta (máximo 3 rondas)
+Cuando el análisis está completo, navega a Pantalla 4b
+
+Pantalla 4b — Presupuesto generado: revisión y edición
+Pantalla central de la aplicación. El vendedor ve el presupuesto generado por la IA y puede revisarlo y editarlo antes de enviarlo.
+
+Elementos de la pantalla
+Cabecera con nombre del cliente y estado del presupuesto
+Panel de métricas: número de módulos, total sin IVA, IVA, total con IVA
+Tabla de líneas del presupuesto con columnas: Módulo, Tipo, Medida, Uds., Precio unitario, Subtotal, Acciones
+Cada fila de la tabla es editable: el vendedor puede cambiar unidades y precio unitario haciendo clic en la celda
+Botón 'Añadir línea' para agregar módulos manualmente
+Botón 'Eliminar' (icono papelera) en cada línea
+Las líneas editadas manualmente se marcan visualmente (color diferente o icono)
+Los totales se recalculan automáticamente al editar cualquier línea
+Botón secundario 'Guardar borrador'
+Botón principal 'Generar PDF y enviar'
+Notas de la IA (si las hay) mostradas en un banner informativo
+
+Lógica y comportamiento
+Los datos de la tabla vienen del análisis de la IA, cruzados con la tarifa de precios de la tienda
+Si un módulo de la IA no se encuentra en la tarifa, se marca como 'Precio no encontrado' y se deja en 0 para que el vendedor lo rellene
+Al hacer clic en una celda editable, aparece un input inline en esa misma celda
+Al salir del input, se recalcula el subtotal y los totales
+Guardar borrador guarda el estado en Supabase (estado = 'borrador')
+Al hacer clic en Generar PDF y enviar, navega a Pantalla 5
+
+Pantalla 5 — Generación del PDF y envío al cliente
+Pantalla final del flujo. El vendedor genera el PDF personalizado y lo envía o descarga.
+
+Elementos de la pantalla
+Vista previa del presupuesto en formato PDF (renderizado en pantalla)
+El PDF incluye: logo de la tienda, nombre y contacto de la tienda, datos del cliente, fecha, número de presupuesto, tabla de módulos, totales, condiciones comerciales
+Botón 'Descargar PDF'
+Botón 'Enviar por email' (abre cliente de email con el PDF adjunto y asunto predefinido)
+Botón 'Copiar enlace' (genera enlace público al PDF en Supabase Storage)
+Botón 'Volver al dashboard'
+
+Lógica y comportamiento
+El PDF se genera con react-pdf usando los colores y logo de la tienda
+El número de presupuesto se genera automáticamente: año + número correlativo por tienda (ej: 2026-0001)
+Al generar el PDF, el estado del presupuesto pasa a 'revisado'
+Al hacer clic en Enviar por email, el estado pasa a 'enviado'
+El PDF se guarda en Supabase Storage y la URL se guarda en el campo pdf_url del presupuesto
+
+Pantalla 6 — Panel de administración de la tienda
+Accesible solo para usuarios con rol 'admin'. Permite configurar todo lo relativo a la tienda: marca, tarifa de precios y usuarios.
+
+Elementos de la pantalla
+Sección 'Identidad visual': subida de logo, selector de color primario, nombre de la tienda, email y teléfono, dirección
+Sección 'Condiciones comerciales': campo de texto largo con las condiciones que aparecen en el PDF
+Sección 'Tarifa de precios': tabla con todos los módulos de la tarifa, con posibilidad de editar precio, añadir módulo y desactivar módulos
+Botón 'Importar tarifa desde Excel/CSV' para carga masiva
+Sección 'Usuarios': lista de usuarios de la tienda con rol, botón para invitar nuevo usuario por email, botón para desactivar usuario
+Sección 'IVA': campo para configurar el porcentaje de IVA aplicado
+
+Lógica y comportamiento
+Todos los cambios se guardan en Supabase al hacer clic en Guardar en cada sección
+La importación de tarifa lee un CSV con columnas: nombre_modulo, tipo, medida, precio
+Al invitar un nuevo usuario, se envía email de Supabase Auth con link de activación
+Los cambios en el logo o colores se reflejan de inmediato en toda la aplicación
+Solo usuarios con rol 'admin' pueden acceder a esta pantalla; redirigir al dashboard si el rol es 'vendedor'
+
+
+5. API Route: Análisis de Plano con IA
+Esta es la pieza central de la aplicación. Crea el archivo /app/api/analizar-plano/route.ts con el siguiente comportamiento:
+
+5.1 Prompt para la IA
+El prompt que se envía a Claude debe ser exactamente el siguiente (puedes ajustarlo con el tiempo según los resultados):
+
+  Eres un experto en mobiliario de cocina con 20 años de experiencia. Analiza este plano o imagen de una cocina y extrae todos los módulos de mobiliario visibles.  
+  Para cada módulo identifica:  
+  - nombre: nombre descriptivo del módulo (ej: "Módulo bajo 60cm", "Módulo alto puertas", "Columna despensa")  
+  - tipo: "alto", "bajo", "columna", "electrodomestico" o "encimera"  
+  - medida: ancho x alto x fondo en cm (ej: "60x72x60"). Si no se puede determinar, usa el estándar del sector.  
+  - descripcion: descripción breve en máximo 5 palabras  
+  - unidades: número entero  
+  - pregunta: si tienes alguna duda relevante que cambie el presupuesto, escríbela aquí. Si no tienes dudas, pon null.  
+    
+  Responde SOLO con JSON válido, sin markdown, sin texto adicional:  
+  {"modulos":[{"nombre":"...","tipo":"bajo","medida":"60x72x60","descripcion":"...","unidades":1}],"pregunta":"texto o null"}  
+
+5.2 Cruce con la tarifa de precios
+Una vez que la IA devuelve los módulos, la API Route debe consultar la tabla tarifas de Supabase filtrando por tienda_id.
+Para cada módulo de la IA, busca la coincidencia más cercana en la tarifa por nombre_modulo y medida.
+Si encuentra coincidencia, asigna el precio de la tarifa.
+Si no encuentra coincidencia, asigna precio 0 y marca el campo editado_manualmente = true.
+Guarda todas las líneas en la tabla lineas_presupuesto.
+
+6. Diseño Visual y UX
+6.1 Principios de diseño
+Limpio y profesional — la interfaz debe transmitir confianza a un vendedor de cocinas.
+Móvil primero — muchos vendedores usarán la app desde una tablet o el móvil en la tienda.
+Mínima fricción — el número de clics para generar un presupuesto debe ser el mínimo posible.
+Feedback constante — el vendedor siempre debe saber qué está pasando (estados de carga, éxito, error).
+
+6.2 Paleta de colores base
+Color primario
+#1E5FA8 (azul profesional) — sobreescribible por tienda
+Color de fondo
+#F8F9FA (gris muy claro)
+Color de tarjetas
+#FFFFFF (blanco)
+Color de texto principal
+#1A1A2E (casi negro)
+Color de texto secundario
+#6B7280 (gris medio)
+Color de éxito
+#16A34A (verde)
+Color de advertencia
+#D97706 (naranja)
+Color de error
+#DC2626 (rojo)
+
+6.3 Componentes reutilizables a crear
+Button — variantes: primary, secondary, danger, ghost. Con estado de carga (spinner).
+Badge — para estados: borrador (gris), revisado (amarillo), enviado (verde).
+Card — contenedor con sombra suave y bordes redondeados.
+FileUpload — zona de drag & drop con vista previa.
+DataTable — tabla con celdas editables inline.
+Modal — para confirmaciones y formularios secundarios.
+Toast — notificaciones de éxito/error en esquina superior derecha.
+
+7. Orden de Implementación Recomendado
+Sigue este orden exacto para que en cada paso tengas algo funcionando que puedas probar:
+
+Paso 1
+Setup del proyecto: Next.js + TypeScript + Tailwind + Supabase + variables de entorno
+Paso 2
+Crear tablas en Supabase y configurar RLS (Row Level Security)
+Paso 3
+Pantalla 1 — Login con Supabase Auth
+Paso 4
+Pantalla 2 — Dashboard con lista de presupuestos (datos ficticios primero, luego reales)
+Paso 5
+Pantalla 3 — Subida de imagen a Supabase Storage
+Paso 6
+API Route de análisis: conexión con Anthropic y devolución de módulos (sin cruce de tarifa todavía)
+Paso 7
+Pantalla 4b — Tabla de presupuesto con los módulos de la IA (precios a 0)
+Paso 8
+Pantalla 6 — Panel de admin: configuración de tarifa de precios
+Paso 9
+Cruce de módulos de la IA con la tarifa de precios en la API Route
+Paso 10
+Pantalla 4a — Pregunta de la IA (flujo de aclaración)
+Paso 11
+Edición inline de la tabla de presupuesto + guardado en Supabase
+Paso 12
+Pantalla 5 — Generación del PDF con react-pdf
+Paso 13
+Personalización por tienda: logo, colores, condiciones en el PDF
+Paso 14
+Pulido visual, responsive, tests básicos y despliegue en Vercel
+
+8. Seguridad y Privacidad
+Nunca incluyas claves API en el código. Siempre en variables de entorno.
+Configura Row Level Security (RLS) en Supabase para que cada tienda solo acceda a sus propios datos.
+Las llamadas a la API de Anthropic se hacen siempre desde el servidor (API Routes), nunca desde el cliente.
+Los archivos subidos a Supabase Storage deben estar en buckets privados, accesibles solo con URL firmada.
+Valida el tipo y tamaño de los archivos subidos tanto en el cliente como en el servidor.
+Implementa rate limiting básico en la API Route de análisis para evitar abusos.
+
+9. Glosario de Términos del Sector
+La IA usa estos términos en sus análisis. El sistema debe reconocerlos correctamente:
+
+Módulo bajo
+Mueble de cocina que va al nivel del suelo, generalmente 72cm de alto y 60cm de fondo
+Módulo alto
+Mueble de cocina que va colgado en la pared, generalmente 35cm de fondo
+Columna
+Módulo vertical de suelo a techo, 200-220cm de alto, usado como despensa o escobero
+Encimera
+Superficie de trabajo horizontal. Se presupuesta por metro lineal
+Campana
+Extractor de humos, va colgado sobre la placa de cocción
+Placa
+Superficie de cocción (vitrocerámica, inducción o gas)
+Fregadero
+Pileta de lavado, se integra en un módulo bajo especial
+Zócalo
+Pieza inferior que tapa el hueco entre el mueble y el suelo
+Módulo esquina
+Módulo especial para resolver los ángulos en cocinas en L o U
+Frente
+La puerta o cajón visible del módulo
+
+— Fin del documento de especificaciones —
+App Presupuestos Cocinas IA  ·  v1.0  ·  Mayo 2026  ·  Confidencial
+

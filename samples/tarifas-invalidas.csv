@@ -1,0 +1,7 @@
+nombre_modulo,tipo,medida,precio
+Módulo válido para mezcla,bajo,60x72x60,150.00
+Módulo con tipo inválido,banco,60x72x60,200.00
+Módulo con precio negativo,alto,60x72x35,-50.00
+Módulo con precio en letras,columna,60x220x60,gratis
+,accesorio,40x35,30.00
+Otro válido para confirmar,encimera,ml,75.00
