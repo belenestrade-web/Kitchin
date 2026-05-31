@@ -547,15 +547,17 @@ export default function PresupuestoDetalle({
               Líneas del presupuesto
             </h3>
             <p className="mt-1 text-xs text-text-muted">
-              Click sobre Uds. o Precio para editar. Enter guarda, Esc cancela.
+              Toca o haz clic sobre Uds. o Precio para editar.
+              <span className="hidden sm:inline"> Enter guarda, Esc cancela.</span>
             </p>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row">
             <Button
               type="button"
               variant={formAddOpen ? 'ghost' : 'secondary'}
               onClick={() => setFormAddOpen((v) => !v)}
               disabled={guardando || analizando}
+              className="w-full sm:w-auto"
             >
               {formAddOpen ? 'Cancelar' : 'Añadir línea'}
             </Button>
@@ -565,6 +567,7 @@ export default function PresupuestoDetalle({
               loading={guardando}
               disabled={!dirty || guardando || analizando}
               onClick={guardar}
+              className="w-full sm:w-auto"
             >
               {guardando
                 ? 'Guardando…'
@@ -586,6 +589,7 @@ export default function PresupuestoDetalle({
                     ? 'Añade al menos una línea para generar el PDF'
                     : undefined
               }
+              className="w-full sm:w-auto"
             >
               Generar PDF y enviar
             </Button>
