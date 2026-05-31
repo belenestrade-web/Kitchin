@@ -9,7 +9,9 @@ export type TipoModulo =
   | 'columna'
   | 'electrodomestico'
   | 'encimera'
-  | 'accesorio';
+  | 'accesorio'
+  | 'panel'
+  | 'zocalo';
 
 export const TIPOS_VALIDOS: readonly TipoModulo[] = [
   'bajo',
@@ -18,6 +20,8 @@ export const TIPOS_VALIDOS: readonly TipoModulo[] = [
   'electrodomestico',
   'encimera',
   'accesorio',
+  'panel',
+  'zocalo',
 ] as const;
 
 export type EstadoPresupuesto = 'borrador' | 'revisado' | 'enviado';
