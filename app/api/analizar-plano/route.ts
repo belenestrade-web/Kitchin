@@ -269,8 +269,8 @@ Usa estas medidas para calcular dimensiones reales de los módulos.`
   try {
     const response = await anthropic.messages.create({
       model: ANTHROPIC_MODEL,
-      max_tokens: 16000,
-      thinking: { type: 'adaptive' },
+      max_tokens: 4000,
+      thinking: { type: 'disabled' },
       system: SYSTEM_PROMPT,
       output_config: {
         format: { type: 'json_schema', schema: ANALISIS_SCHEMA },
