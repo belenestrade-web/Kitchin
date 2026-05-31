@@ -12,8 +12,9 @@ const SYSTEM_PROMPT = `Eres un experto en mobiliario de cocina con 20 años de e
 
 Para cada módulo identifica:
 - nombre: nombre descriptivo del módulo (ej: "Módulo bajo 60cm", "Módulo alto puertas", "Columna despensa")
-- tipo: "alto", "bajo", "columna", "electrodomestico" o "encimera"
+- tipo: "alto", "bajo", "columna", "electrodomestico", "encimera", "panel" o "zocalo"
 - medida: ancho x alto x fondo en cm (ej: "60x72x60"). Si no se puede determinar, usa el estándar del sector.
+- IMPORTANTE: si la imagen es una fotografía (no un plano CAD con cotas), añade siempre una pregunta obligatoria pidiendo el ancho total de la cocina, la altura del techo y la profundidad de los módulos. Sin estas medidas no puedes calcular dimensiones reales.
 - descripcion: descripción breve en máximo 5 palabras
 - unidades: número entero
 - pregunta: si tienes alguna duda relevante que cambie el presupuesto, escríbela aquí. Si no tienes dudas, pon null.
@@ -39,7 +40,7 @@ const ANALISIS_SCHEMA: Record<string, unknown> = {
           nombre: { type: 'string' },
           tipo: {
             type: 'string',
-            enum: ['alto', 'bajo', 'columna', 'electrodomestico', 'encimera'],
+            enum: ['alto', 'bajo', 'columna', 'electrodomestico', 'encimera', 'panel', 'zocalo'],
           },
           medida: { type: 'string' },
           descripcion: { type: 'string' },
