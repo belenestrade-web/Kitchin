@@ -130,6 +130,18 @@ export async function POST(req: NextRequest) {
   }
   const esFollowUp = respuesta.length > 0;
 
+  const medidasRaw = body.medidas && typeof body.medidas === 'object'
+    ? (body.medidas as Record<string, unknown>)
+    : null;
+  const medidas = medidasRaw
+    ? {
+        anchoTotal:        String(medidasRaw.anchoTotal        ?? '').trim(),
+        altoTecho:         String(medidasRaw.altoTecho         ?? '').trim(),
+        profundidad_bajos: String(medidasRaw.profundidad_bajos ?? '').trim(),
+        profundidad_altos: String(medidasRaw.profundidad_altos ?? '').trim(),
+      }
+    : null;
+
   const supabase = createClient();
   const {
     data: { user },
@@ -235,7 +247,17 @@ En tu análisis previo me preguntaste: «${preguntaPrevia}»
 Respuesta del vendedor: «${respuesta}»
 
 Incorpora esa respuesta al análisis y devuelve el JSON completo con TODOS los módulos identificados (no solo los nuevos). Si todavía tienes una duda relevante que cambie el presupuesto, ponla en "pregunta"; si no, pon null.`
-    : 'Analiza este plano y devuelve los módulos en JSON.';
+    : medidas
+      ? `Analiza este plano y devuelve los módulos en JSON.
+
+MEDIDAS DE LA COCINA (proporcionadas por el vendedor):
+- Ancho total: ${medidas.anchoTotal} cm
+- Altura del techo: ${medidas.altoTecho} cm
+- Profundidad módulos bajos: ${medidas.profundidad_bajos} cm
+- Profundidad módulos altos: ${medidas.profundidad_altos} cm
+
+Usa estas medidas para calcular dimensiones reales de los módulos.`
+      : 'Analiza este plano y devuelve los módulos en JSON.';
 
   let analisis: RespuestaAnalisisIA;
   try {

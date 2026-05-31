@@ -32,9 +32,11 @@ const tipoLabel: Record<TipoModulo, string> = {
   electrodomestico: 'Electrodom.',
   encimera: 'Encimera',
   accesorio: 'Accesorio',
+  panel: 'Panel',
+  zocalo: 'Zócalo',
 };
 
-const MAX_RONDAS = 3;
+const MAX_RONDAS = 5;
 const MAX_RESPUESTA_CHARS = 2000;
 
 function round2(n: number): number {
@@ -144,6 +146,10 @@ export default function PresupuestoDetalle({
   const [formAddOpen, setFormAddOpen] = useState(false);
   const [modalReanalizar, setModalReanalizar] = useState(false);
 
+  const [medidas, setMedidas] = useState({ anchoTotal: '', altoTecho: '', profundidad_bajos: '', profundidad_altos: '' });
+  const [medidasConfirmadas, setMedidasConfirmadas] = useState(false);
+  const [formMedidasOpen, setFormMedidasOpen] = useState(false);
+
   // beforeunload solo si hay cambios sin guardar.
   useEffect(() => {
     if (!dirty) return;
@@ -209,6 +215,10 @@ export default function PresupuestoDetalle({
 
   function pedirAnalisis() {
     if (analizando || guardando) return;
+    if (!medidasConfirmadas) {
+      setFormMedidasOpen(true);
+      return;
+    }
     // Si hay líneas en pantalla (memoria o BD), confirmar antes de reemplazar.
     if (lineas.length > 0) {
       setModalReanalizar(true);
@@ -225,7 +235,7 @@ export default function PresupuestoDetalle({
     setEditing(null);
     setEliminandoId(null);
     try {
-      await llamarApiAnalisis({ presupuesto_id: presupuestoId });
+      await llamarApiAnalisis({ presupuesto_id: presupuestoId, medidas });
     } finally {
       setAnalizando(false);
     }
@@ -470,6 +480,19 @@ export default function PresupuestoDetalle({
               : 'Analizar con IA'}
         </Button>
       </Card>
+
+      {formMedidasOpen && !medidasConfirmadas && (
+        <FormularioMedidas
+          medidas={medidas}
+          onChange={setMedidas}
+          onConfirmar={() => {
+            setMedidasConfirmadas(true);
+            setFormMedidasOpen(false);
+            void ejecutarAnalisis();
+          }}
+          onCancelar={() => setFormMedidasOpen(false)}
+        />
+      )}
 
       {error && (
         <p
@@ -1186,6 +1209,101 @@ function ModalConfirmar({
         </div>
       </div>
     </div>
+  );
+}
+
+function FormularioMedidas({
+  medidas,
+  onChange,
+  onConfirmar,
+  onCancelar,
+}: {
+  medidas: { anchoTotal: string; altoTecho: string; profundidad_bajos: string; profundidad_altos: string };
+  onChange: (m: { anchoTotal: string; altoTecho: string; profundidad_bajos: string; profundidad_altos: string }) => void;
+  onConfirmar: () => void;
+  onCancelar: () => void;
+}) {
+  const completo =
+    medidas.anchoTotal.trim() !== '' &&
+    medidas.altoTecho.trim() !== '' &&
+    medidas.profundidad_bajos.trim() !== '' &&
+    medidas.profundidad_altos.trim() !== '';
+
+  return (
+    <Card className="space-y-4 border border-primary/30 bg-primary/5 p-6">
+      <header>
+        <h3 className="text-base font-semibold text-text-main">Medidas de la cocina</h3>
+        <p className="mt-1 text-sm text-text-muted">
+          Necesitamos estas medidas para calcular dimensiones reales antes de analizar el plano.
+        </p>
+      </header>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div>
+          <label htmlFor="medida-ancho" className="block text-xs font-medium text-text-muted">
+            Ancho total de la cocina (cm)
+          </label>
+          <input
+            id="medida-ancho"
+            type="number"
+            min={1}
+            value={medidas.anchoTotal}
+            onChange={(e) => onChange({ ...medidas, anchoTotal: e.target.value })}
+            placeholder="ej: 360"
+            className="mt-1 block w-full rounded-card border border-text-muted/30 bg-card px-3 py-2 text-sm text-text-main focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+          />
+        </div>
+        <div>
+          <label htmlFor="medida-alto" className="block text-xs font-medium text-text-muted">
+            Altura del techo (cm)
+          </label>
+          <input
+            id="medida-alto"
+            type="number"
+            min={1}
+            value={medidas.altoTecho}
+            onChange={(e) => onChange({ ...medidas, altoTecho: e.target.value })}
+            placeholder="ej: 250"
+            className="mt-1 block w-full rounded-card border border-text-muted/30 bg-card px-3 py-2 text-sm text-text-main focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+          />
+        </div>
+        <div>
+          <label htmlFor="medida-prof-bajos" className="block text-xs font-medium text-text-muted">
+            Profundidad módulos bajos (cm)
+          </label>
+          <input
+            id="medida-prof-bajos"
+            type="number"
+            min={1}
+            value={medidas.profundidad_bajos}
+            onChange={(e) => onChange({ ...medidas, profundidad_bajos: e.target.value })}
+            placeholder="ej: 60"
+            className="mt-1 block w-full rounded-card border border-text-muted/30 bg-card px-3 py-2 text-sm text-text-main focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+          />
+        </div>
+        <div>
+          <label htmlFor="medida-prof-altos" className="block text-xs font-medium text-text-muted">
+            Profundidad módulos altos (cm)
+          </label>
+          <input
+            id="medida-prof-altos"
+            type="number"
+            min={1}
+            value={medidas.profundidad_altos}
+            onChange={(e) => onChange({ ...medidas, profundidad_altos: e.target.value })}
+            placeholder="ej: 35"
+            className="mt-1 block w-full rounded-card border border-text-muted/30 bg-card px-3 py-2 text-sm text-text-main focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+          />
+        </div>
+      </div>
+      <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+        <Button type="button" variant="ghost" onClick={onCancelar} className="w-full sm:w-auto">
+          Cancelar
+        </Button>
+        <Button type="button" disabled={!completo} onClick={onConfirmar} className="w-full sm:w-auto">
+          Confirmar medidas
+        </Button>
+      </div>
+    </Card>
   );
 }
 
